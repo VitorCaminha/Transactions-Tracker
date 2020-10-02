@@ -33,27 +33,22 @@ class TransactionsRepository {
   }
 
   public getBalance(): Balance {
-    const income = this.transactions.reduce((incomeSum, transaction) => {
-      if (transaction.type === 'income') {
-        return incomeSum + transaction.value;
-      }
+    const balance = this.transactions.reduce(
+      (acc, transaction) => {
+        acc[transaction.type] += transaction.value;
 
-      return incomeSum;
-    }, 0);
+        return acc;
+      },
+      {
+        income: 0,
+        outcome: 0,
+        total: 0,
+      },
+    );
 
-    const outcome = this.transactions.reduce((outcomeSum, transaction) => {
-      if (transaction.type === 'outcome') {
-        return outcomeSum + transaction.value;
-      }
+    balance.total = balance.income - balance.outcome;
 
-      return outcomeSum;
-    }, 0);
-
-    return {
-      income,
-      outcome,
-      total: income - outcome,
-    };
+    return balance;
   }
 
   public create({ value, type, title }: CreateTransactionDTO): Transaction {

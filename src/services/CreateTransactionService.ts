@@ -1,35 +1,63 @@
+import { getCustomRepository, getRepository } from 'typeorm';
+
+import AppError from '../errors/AppError';
+
 import TransactionsRepository from '../repositories/TransactionsRepository';
 import Transaction from '../models/Transaction';
+import Category from '../models/Category';
 
 interface RequestDTO {
   title: string;
   value: number;
   type: 'income' | 'outcome';
+  category: string;
 }
 
 class CreateTransactionService {
-  private transactionsRepository: TransactionsRepository;
+  public async execute({
+    title,
+    type,
+    value,
+    category,
+  }: RequestDTO): Promise<Transaction> {
+    const transactionsRepository = getCustomRepository(TransactionsRepository);
 
-  constructor(transactionsRepository: TransactionsRepository) {
-    this.transactionsRepository = transactionsRepository;
-  }
+    const categoriesRepository = getRepository(Category);
 
-  public execute({ title, type, value }: RequestDTO): Transaction {
     if (!['income', 'outcome'].includes(type)) {
-      throw Error('Transaction type is invalid.');
+      throw new AppError('Transaction type is invalid.');
     }
 
-    const balance = this.transactionsRepository.getBalance();
+    const balance = await transactionsRepository.getBalance();
 
     if (type === 'outcome' && value > balance.total) {
-      throw Error("You don't have enough balance on your account.");
+      throw new AppError("You don't have enough balance on your account.");
     }
 
-    const transaction = this.transactionsRepository.create({
+    const transactionCategory = await categoriesRepository.findOne({
+      where: {
+        title: category,
+      },
+    });
+
+    let category_id = transactionCategory?.id;
+
+    if (!transactionCategory) {
+      const newCategory = categoriesRepository.create({ title: category });
+
+      await categoriesRepository.save(newCategory);
+
+      category_id = newCategory.id;
+    }
+
+    const transaction = transactionsRepository.create({
       title,
       type,
       value,
+      category_id,
     });
+
+    await transactionsRepository.save(transaction);
 
     return transaction;
   }

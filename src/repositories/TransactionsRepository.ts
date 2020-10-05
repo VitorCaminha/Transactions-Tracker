@@ -1,10 +1,6 @@
-import Transaction from '../models/Transaction';
+import { EntityRepository, Repository } from 'typeorm';
 
-interface CreateTransactionDTO {
-  title: string;
-  value: number;
-  type: 'income' | 'outcome';
-}
+import Transaction from '../models/Transaction';
 
 interface Balance {
   income: number;
@@ -12,30 +8,14 @@ interface Balance {
   total: number;
 }
 
-interface Response {
-  transactions: Transaction[];
-  balance: Balance;
-}
+@EntityRepository(Transaction)
+class TransactionsRepository extends Repository<Transaction> {
+  public async getBalance(): Promise<Balance> {
+    const transactions = await this.find();
 
-class TransactionsRepository {
-  private transactions: Transaction[];
-
-  constructor() {
-    this.transactions = [];
-  }
-
-  public all(): Response {
-    const { transactions } = this;
-
-    const balance = this.getBalance();
-
-    return { transactions, balance };
-  }
-
-  public getBalance(): Balance {
-    const balance = this.transactions.reduce(
+    const balance = transactions.reduce(
       (acc, transaction) => {
-        acc[transaction.type] += transaction.value;
+        acc[transaction.type] += Number(transaction.value);
 
         return acc;
       },
@@ -49,14 +29,6 @@ class TransactionsRepository {
     balance.total = balance.income - balance.outcome;
 
     return balance;
-  }
-
-  public create({ value, type, title }: CreateTransactionDTO): Transaction {
-    const transaction = new Transaction({ title, type, value });
-
-    this.transactions.push(transaction);
-
-    return transaction;
   }
 }
 
